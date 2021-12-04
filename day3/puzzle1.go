@@ -7,7 +7,7 @@ import (
 	"strconv"
 )
 
-func main() {
+func p1() {
 	data, err := os.ReadFile("input.txt")
 	if err != nil {
 		panic(err)

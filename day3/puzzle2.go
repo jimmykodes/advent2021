@@ -9,7 +9,7 @@ import (
 
 var numBits = 12
 
-func main() {
+func p2() {
 	rows := getRows()
 	o := oxygen(rows)
 	c := carbon(rows)
@@ -19,13 +19,11 @@ func main() {
 }
 
 func mcb(rows []int64, bp int) bool {
-	sums := make([]float64, numBits)
+	var sum int64
 	for _, row := range rows {
-		for i := 0; i < numBits; i++ {
-			sums[i] += float64((row & (1 << i)) >> i)
-		}
+		sum += (row & (1 << bp)) >> bp
 	}
-	return sums[bp] >= float64(len(rows))/2.0
+	return sum*2 >= int64(len(rows))
 }
 
 func getRows() []int64 {
@@ -50,61 +48,44 @@ func match(num int64, bp, val int) bool {
 }
 
 func oxygen(rows []int64) int64 {
-	r2 := make([]int64, len(rows))
-	for i, r := range rows {
-		r2[i] = r
-	}
-	for bp := numBits - 1; bp >= 0; bp-- {
-		next := make([]int64, 0)
-		if mcb(r2, bp) {
-			// most common bit is a 1
-			for _, r := range r2 {
-				if match(r, bp, 1) {
-					next = append(next, r)
-				}
-			}
-		} else {
-			for _, r := range r2 {
-				if match(r, bp, 0) {
-					next = append(next, r)
-				}
-			}
-		}
-		if len(next) == 1 {
-			return next[0]
-		}
-		r2 = next
-	}
-	panic("how did i get here")
+	return filter(rows, true)
 }
 
 func carbon(rows []int64) int64 {
+	return filter(rows, false)
+}
+
+func filter(rows []int64, useMCB bool) int64 {
+	r2 := clone(rows)
+	for bp := numBits - 1; bp >= 0; bp-- {
+		next := make([]int64, 0)
+		var matchVal int
+		mostCommon := mcb(r2, bp)
+		switch {
+		case (mostCommon && useMCB) || (!mostCommon && !useMCB):
+			matchVal = 1
+		case (mostCommon && !useMCB) || (!mostCommon && useMCB):
+			matchVal = 0
+		}
+		for _, r := range r2 {
+			if match(r, bp, matchVal) {
+				next = append(next, r)
+			}
+		}
+		r2 = next
+		if len(next) == 1 {
+			break
+		}
+	}
+	return r2[0]
+}
+
+func clone(rows []int64) []int64 {
 	r2 := make([]int64, len(rows))
 	for i, r := range rows {
 		r2[i] = r
 	}
-	for bp := numBits - 1; bp >= 0; bp-- {
-		next := make([]int64, 0)
-		if mcb(r2, bp) {
-			// most common bit is a 1
-			for _, r := range r2 {
-				if match(r, bp, 0) {
-					next = append(next, r)
-				}
-			}
-		} else {
-			for _, r := range r2 {
-				if match(r, bp, 1) {
-					next = append(next, r)
-				}
-			}
-		}
-		if len(next) == 1 {
-			return next[0]
-		}
-		r2 = next
-	}
-	panic("how did i get here")
+	return r2
 }
 
 func printBin(rows []int64) {
