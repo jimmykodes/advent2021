@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"math"
 	"os"
 	"sort"
 	"strconv"
@@ -16,7 +15,7 @@ func (s Stack) Len() int {
 }
 
 func (s Stack) Less(i, j int) bool {
-	return s[i].TotalRisk > s[j].TotalRisk
+	return s[i].Cost() > s[j].Cost()
 }
 
 func (s Stack) Swap(i, j int) {
@@ -43,7 +42,8 @@ func (s *Stack) Peek() *Node {
 }
 
 func main() {
-	board := loadBoard("input.txt")
+	data := expandData(loadFile("input.txt"), 5)
+	board := loadBoard(data)
 	stack := Stack([]*Node{board[0][0]})
 	step := 0
 	current := stack.Pop()
@@ -51,15 +51,11 @@ func main() {
 	for !current.IsEnd {
 		step++
 		via := current.Via
-		previousRisk := 0
-		if via != nil {
-			previousRisk = via.TotalRisk
-		}
 		for _, n := range []*Node{current.Left, current.Right, current.Top, current.Bottom} {
 			if n == nil || n == via {
 				continue
 			}
-			totalRisk := previousRisk + current.Risk + n.Risk
+			totalRisk := current.TotalRisk + n.Risk
 			if n.Visited {
 				if totalRisk < n.TotalRisk {
 					// less risky through this path, update things
@@ -84,41 +80,30 @@ func main() {
 		current = current.Via
 	}
 	fmt.Println("total risk:", r)
-	for _, nodes := range board {
-		for _, node := range nodes {
-			char := "-"
-			if node.Path {
-				char = strconv.Itoa(node.Risk)
-			}
-			fmt.Print(char)
-		}
-		fmt.Println()
-	}
+	// for _, nodes := range board {
+	// 	for _, node := range nodes {
+	// 		char := "-"
+	// 		if node.Path {
+	// 			char = strconv.Itoa(node.Risk)
+	// 		}
+	// 		fmt.Print(char)
+	// 	}
+	// 	fmt.Println()
+	// }
 }
 
-func loadBoard(filename string) [][]*Node {
-	data, err := os.ReadFile(filename)
-	if err != nil {
-		panic(err)
-	}
-
-	rows := strings.Split(string(data), "\n")
+func loadBoard(rows [][]int) [][]*Node {
 	b := make([][]*Node, len(rows))
 	var finalX, finalY int
 	finalY = len(rows) - 1
 	for y, row := range rows {
 		b[y] = make([]*Node, len(row))
 		finalX = len(row) - 1
-		for x, char := range row {
-			r, err := strconv.Atoi(string(char))
-			if err != nil {
-				panic(err)
-			}
+		for x, r := range row {
 			n := &Node{
-				X:         x,
-				Y:         y,
-				Risk:      r,
-				SquareMag: math.Pow(float64(finalX-x), 2) + math.Pow(float64(finalY-y), 2),
+				X:    x,
+				Y:    y,
+				Risk: r,
 			}
 			if y == 0 && x == 0 {
 				n.IsStart = true
@@ -143,12 +128,54 @@ func loadBoard(filename string) [][]*Node {
 	return b
 }
 
+func loadFile(filename string) [][]int {
+	data, err := os.ReadFile(filename)
+	if err != nil {
+		panic(err)
+	}
+
+	rows := strings.Split(string(data), "\n")
+	b := make([][]int, len(rows))
+	for y, row := range rows {
+		b[y] = make([]int, len(row))
+		for x, char := range row {
+			r, err := strconv.Atoi(string(char))
+			if err != nil {
+				panic(err)
+			}
+			b[y][x] = r
+		}
+	}
+	return b
+}
+
+func expandData(data [][]int, expansionFactor int) [][]int {
+	rows := len(data)
+	cols := len(data[0])
+	d := make(board, rows*expansionFactor)
+
+	for i := 0; i < expansionFactor; i++ {
+		for j := 0; j < expansionFactor; j++ {
+			for r := 0; r < rows; r++ {
+				if d[r+(i*rows)] == nil {
+					d[r+(i*rows)] = make([]int, cols*expansionFactor)
+				}
+				for c := 0; c < cols; c++ {
+					v := data[r][c] + i + j
+					v = (v % 10) + (v / 10)
+					d[r+(i*rows)][c+(j*cols)] = v
+				}
+			}
+		}
+	}
+	return d
+}
+
 type Node struct {
 	X         int
 	Y         int
 	TotalRisk int
 	Risk      int
-	SquareMag float64
 
 	Left   *Node
 	Right  *Node
@@ -164,4 +191,21 @@ type Node struct {
 
 func (n Node) String() string {
 	return fmt.Sprintf("(%d, %d) %d %d", n.X, n.Y, n.Risk, n.TotalRisk)
+}
+
+func (n Node) Cost() int {
+	return n.TotalRisk
+}
+
+type board [][]int
+
+func (b board) String() string {
+	var sb strings.Builder
+	for _, row := range b {
+		for _, col := range row {
+			fmt.Fprint(&sb, col)
+		}
+		fmt.Fprintln(&sb)
+	}
+	return sb.String()
 }
